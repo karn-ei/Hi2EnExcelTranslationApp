@@ -1,9 +1,9 @@
 import streamlit as st
 import openpyxl
-import toml
 from openai import OpenAI
+import os
 
-# Load API key from TOML file
+# Load API key securely from Streamlit secrets
 def load_api_key():
     return st.secrets["openai"]["api_key"]
 
@@ -20,8 +20,8 @@ def get_language_style_for_class(student_class):
         'C': 'for a 5-year-old child',
         '1': 'for a 6-year-old child',
         '2': 'for a 7-year-old child',
-        '3': 'for a 8-year old child',
-        '4': 'for a 9-year old child',
+        '3': 'for a 8-year-old child',
+        '4': 'for a 9-year-old child',
         '5': 'for a 10-year-old child'
     }
     return class_to_age_language_mapping.get(student_class, 'for general audiences')
@@ -41,7 +41,7 @@ def translate_text_via_openai(text, api_key, prompt_template, language_style):
     translated_text = response.choices[0].message.content.strip()
     return translated_text
 
-# Function to handle Excel file
+# Function to process the Excel file
 def process_excel(file, api_key, prompt_template):
     workbook = openpyxl.load_workbook(file)
     sheet = workbook.active
@@ -78,12 +78,11 @@ def main():
         workbook = process_excel(uploaded_file, api_key, prompt_template)
 
         if workbook:
-            st.success('Translation completed!')
-            with open('translated_questions.xlsx', 'wb') as f:
+            input_filename = os.path.splitext(uploaded_file.name)[0]
+            output_filename = f"{input_filename}_en.xlsx"
+
+            with open(output_filename, 'wb') as f:
                 workbook.save(f)
 
-            with open('translated_questions.xlsx', 'rb') as f:
-                st.download_button('Download Translated File', f, file_name='translated_questions.xlsx')
-
-if __name__ == '__main__':
-    main()
+            with open(output_filename, 'rb') as f:
+                st.success('Translation
