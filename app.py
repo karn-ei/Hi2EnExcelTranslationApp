@@ -68,7 +68,7 @@ def process_excel(file, api_key, prompt_template):
 
 # Streamlit app interface
 def main():
-    st.title('Hindi to English Question Translator using OpenAI')
+    st.title('Hindi to English Question Translator')
 
     uploaded_file = st.file_uploader("Upload Excel File", type="xlsx")
 
