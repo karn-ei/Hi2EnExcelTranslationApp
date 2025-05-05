@@ -2,6 +2,7 @@ import streamlit as st
 import openpyxl
 from openai import OpenAI
 import os
+import re
 
 # Load API key securely from Streamlit secrets
 def load_api_key():
@@ -25,6 +26,18 @@ def get_language_style_for_class(student_class):
         '5': 'for a 10-year-old child'
     }
     return class_to_age_language_mapping.get(student_class, 'for a 6-year old')
+
+# Check if the text contains Hindi content
+def contains_hindi(text):
+    # Ignore if it's a filename or HTML
+    if re.search(r'\.(jpg|jpeg|png|gif|bmp|mp3|mp4|wav|webm)$', text, re.IGNORECASE):
+        return False
+    if re.search(r'<.*?>', text):  # HTML tags
+        return False
+    if re.match(r'^[\d\s\W_]+$', text):  # Only numbers or symbols
+        return False
+    # Check for presence of 2 or more Devanagari characters
+    return len(re.findall(r'[\u0900-\u097F]', text)) >= 2
 
 # Function to perform translation using OpenAI API
 def translate_text_via_openai(text, api_key, prompt_template, language_style):
@@ -64,7 +77,7 @@ def process_excel(file, api_key, prompt_template):
         language_style = get_language_style_for_class(student_class)
 
         for cell in row:
-            if isinstance(cell.value, str):
+            if isinstance(cell.value, str) and contains_hindi(cell.value):
                 translated_text, tokens_used = translate_text_via_openai(cell.value, api_key, prompt_template, language_style)
                 cell.value = translated_text
                 total_tokens_used += tokens_used  # Accumulate total tokens
