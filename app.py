@@ -16,8 +16,8 @@ def load_prompt_template():
 # Determine language complexity based on class/age
 def get_language_style_for_class(student_class):
     class_to_age_language_mapping = {
-        'A': 'for a 3-year-old child',
-        'B': 'for a 4-year-old child',
+        'A': 'for a 5-year-old child',
+        'B': 'for a 5-year-old child',
         'C': 'for a 5-year-old child',
         '1': 'for a 6-year-old child',
         '2': 'for a 7-year-old child',
