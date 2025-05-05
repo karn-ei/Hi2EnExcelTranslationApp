@@ -5,9 +5,7 @@ from openai import OpenAI
 
 # Load API key from TOML file
 def load_api_key():
-    with open("openai_key.toml", "r") as file:
-        config = toml.load(file)
-    return config["openai"]["api_key"]
+    return st.secrets["openai"]["api_key"]
 
 # Load prompt template from file
 def load_prompt_template():
