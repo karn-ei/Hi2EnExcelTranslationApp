@@ -49,6 +49,8 @@ def process_excel(file, api_key, prompt_template):
     sheet = workbook.active
 
     class_column_index = None
+    total_tokens_used = 0  # Initialize a counter for total tokens used
+
     for col in sheet.iter_cols(1, sheet.max_column):
         if col[0].value == 'Class':
             class_column_index = col[0].col_idx - 1  # Zero-indexed
@@ -65,7 +67,9 @@ def process_excel(file, api_key, prompt_template):
             if isinstance(cell.value, str):
                 translated_text, tokens_used = translate_text_via_openai(cell.value, api_key, prompt_template, language_style)
                 cell.value = translated_text
-                st.write(f"Tokens used for translation: {tokens_used}")  # Display token usage
+                total_tokens_used += tokens_used  # Accumulate total tokens
+
+    st.write(f"Total tokens used for all translations: {total_tokens_used}")  # Display total token usage
 
     return workbook
 
