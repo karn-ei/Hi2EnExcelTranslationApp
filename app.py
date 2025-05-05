@@ -85,4 +85,8 @@ def main():
                 workbook.save(f)
 
             with open(output_filename, 'rb') as f:
-                st.success('Translation
+                st.success('Translation completed!')
+                st.download_button('Download Translated File', f, file_name=output_filename)
+
+if __name__ == '__main__':
+    main()
