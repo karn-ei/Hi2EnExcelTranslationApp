@@ -39,7 +39,9 @@ def translate_text_via_openai(text, api_key, prompt_template, language_style):
         ]
     )
     translated_text = response.choices[0].message.content.strip()
-    return translated_text
+    tokens_used = response.usage.total_tokens  # Get the total tokens used
+
+    return translated_text, tokens_used
 
 # Function to process the Excel file
 def process_excel(file, api_key, prompt_template):
@@ -61,8 +63,9 @@ def process_excel(file, api_key, prompt_template):
 
         for cell in row:
             if isinstance(cell.value, str):
-                translated_text = translate_text_via_openai(cell.value, api_key, prompt_template, language_style)
+                translated_text, tokens_used = translate_text_via_openai(cell.value, api_key, prompt_template, language_style)
                 cell.value = translated_text
+                st.write(f"Tokens used for translation: {tokens_used}")  # Display token usage
 
     return workbook
 
