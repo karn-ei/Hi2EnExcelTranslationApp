@@ -24,7 +24,7 @@ def get_language_style_for_class(student_class):
         '4': 'for a 9-year-old child',
         '5': 'for a 10-year-old child'
     }
-    return class_to_age_language_mapping.get(student_class, 'for general audiences')
+    return class_to_age_language_mapping.get(student_class, 'for a 6-year old')
 
 # Function to perform translation using OpenAI API
 def translate_text_via_openai(text, api_key, prompt_template, language_style):
@@ -32,7 +32,7 @@ def translate_text_via_openai(text, api_key, prompt_template, language_style):
     prompt = prompt_template.replace("{{text}}", text).replace("{{language_style}}", language_style)
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": "You are a helpful translator."},
             {"role": "user", "content": prompt}
@@ -69,7 +69,7 @@ def process_excel(file, api_key, prompt_template):
                 cell.value = translated_text
                 total_tokens_used += tokens_used  # Accumulate total tokens
 
-    st.write(f"Total tokens used for all translations: {total_tokens_used}")  # Display total token usage
+    st.write(f"Total tokens used for your file: {total_tokens_used}")  # Display total token usage
 
     return workbook
 
@@ -77,7 +77,7 @@ def process_excel(file, api_key, prompt_template):
 def main():
     st.title('Hindi to English Question Translator')
 
-    uploaded_file = st.file_uploader("Upload Excel File", type="xlsx")
+    uploaded_file = st.file_uploader("Upload Excel File (ensure that the excel has a 'Class' column)", type="xlsx")
 
     if uploaded_file:
         api_key = load_api_key()
