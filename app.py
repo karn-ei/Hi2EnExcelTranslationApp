@@ -85,7 +85,7 @@ def process_excel(file):
                     if is_hindi_text(part):
                         cleaned = clean_text(part)
                         # Translation using DeepSeek
-                        translated = openwebui_request(cleaned, "deepseek-chat")
+                        translated = openwebui_request(cleaned, "us.deepseek.r1-v1:0")
                         translated_parts.append(translated)
 
                         # Review only the translated content
@@ -93,7 +93,7 @@ def process_excel(file):
                         review_comments.append(f"Review: {review}")
 
                         # Correction using DeepSeek
-                        corrected = openwebui_request(review, "deepseek-chat")
+                        corrected = openwebui_request(review, "us.deepseek.r1-v1:0")
                         final_parts.append(corrected)
                     else:
                         translated_parts.append(part)
