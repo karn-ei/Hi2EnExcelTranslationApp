@@ -3,6 +3,7 @@ import openpyxl
 import requests
 import os
 import re
+import pandas as pd
 
 # Load configuration from Streamlit Secrets
 def load_config():
@@ -58,11 +59,12 @@ def openwebui_request(text, model):
         return response.json().get("choices", [{}])[0].get("message", {}).get("content", text)
     return text
 
-# Process the Excel file
+# Process the Excel file and create data for the table
 def process_excel(file):
     workbook = openpyxl.load_workbook(file)
     sheet = workbook.active
     class_column_index = None
+    data = []
 
     for col in sheet.iter_cols(1, sheet.max_column):
         if col[0].value == 'Class':
@@ -86,7 +88,7 @@ def process_excel(file):
                         translated = openwebui_request(cleaned, "deepseek-chat")
                         translated_parts.append(translated)
 
-                        # Review using OpenAI
+                        # Review only the translated content
                         review = openwebui_request(translated, "gpt-4o")
                         review_comments.append(f"Review: {review}")
 
@@ -98,16 +100,18 @@ def process_excel(file):
                         review_comments.append("-")
                         final_parts.append(part)
 
-                # Display in Streamlit
-                st.write("Original: ", cell.value)
-                st.write("Translated: ", ''.join(translated_parts))
-                st.write("Review Comments: ", '\n'.join(review_comments))
-                st.write("Final Text: ", ''.join(final_parts))
+                # Compile data for the table
+                data.append({
+                    "Original Text": cell.value,
+                    "Translated Text": ''.join(translated_parts),
+                    "Review Comments": '\n'.join(review_comments),
+                    "Final Text": ''.join(final_parts)
+                })
 
                 # Update cell with final text
                 cell.value = ''.join(final_parts)
 
-    return workbook
+    return workbook, data
 
 # Streamlit app
 def main():
@@ -115,8 +119,14 @@ def main():
 
     uploaded_file = st.file_uploader("Upload Excel File", type="xlsx")
     if uploaded_file:
-        workbook = process_excel(uploaded_file)
+        workbook, data = process_excel(uploaded_file)
         output_filename = "translated_output_openwebui.xlsx"
+
+        # Display the data as a table
+        if data:
+            df = pd.DataFrame(data)
+            st.write("Translation and Review Table")
+            st.dataframe(df)
 
         with open(output_filename, 'wb') as f:
             workbook.save(f)
