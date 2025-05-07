@@ -115,12 +115,12 @@ def process_excel(file):
 
 # Streamlit app
 def main():
-    st.title('OpenWebUI Translation and Review System')
+    st.title('Translate Hi to En on excel')
 
     uploaded_file = st.file_uploader("Upload Excel File", type="xlsx")
     if uploaded_file:
         workbook, data = process_excel(uploaded_file)
-        output_filename = "translated_output_openwebui.xlsx"
+        output_filename = os.path.splitext(uploaded_file.name)[0] + "_en.xlsx"
 
         # Display the data as a table
         if data:
@@ -132,7 +132,7 @@ def main():
             workbook.save(f)
 
         with open(output_filename, 'rb') as f:
-            st.download_button('Download Processed File', f, file_name=output_filename)
+            st.download_button('Download translated file', f, file_name=output_filename)
 
 if __name__ == '__main__':
     main()
