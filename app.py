@@ -1,17 +1,19 @@
 import streamlit as st
 import openpyxl
-from openai import OpenAI
+import requests
 import os
+import toml
 import re
 
-# Load API key securely from Streamlit secrets
-def load_api_key():
-    return st.secrets["openai"]["api_key"]
+# Load configuration from TOML file
+def load_config():
+    return toml.load("config.toml")
 
-# Load prompt template from file
-def load_prompt_template():
-    with open("prompt.txt", "r") as file:
-        return file.read()
+config = load_config()
+
+# Extract endpoint and API key
+api_endpoint = config['openwebui']['endpoint']
+api_key = config['openwebui']['api_key']
 
 # Determine language complexity based on class/age
 def get_language_style_for_class(student_class):
@@ -31,47 +33,39 @@ def get_language_style_for_class(student_class):
 def is_hindi_text(text):
     return len(re.findall(r'[\u0900-\u097F]', text)) >= 3
 
-# Clean the Hindi text before translation
-def clean_text(text):
-    return text.strip()
-
 # Split a cell into translatable and non-translatable parts
 def split_text_parts(text):
     return re.split(r'(<br>|\[.*?\])', text)
 
-# Perform translation using OpenAI API
-def translate_text_via_openai(text, api_key, prompt_template, language_style):
-    client = OpenAI(api_key=api_key)
-    prompt = prompt_template.replace("{{text}}", text).replace("{{language_style}}", language_style)
+# Clean the Hindi text before translation
+def clean_text(text):
+    return text.strip()
 
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a helpful translator."},
-            {"role": "user", "content": prompt}
+# Function to send request to OpenWebUI
+def openwebui_request(text, model):
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "user", "content": text}
         ]
-    )
-    translated_text = response.choices[0].message.content.strip()
-    tokens_used = response.usage.total_tokens  # Track usage
-    return translated_text, tokens_used
+    }
+    headers = {"Authorization": f"Bearer {api_key}"}
+    response = requests.post(api_endpoint, json=payload, headers=headers)
+    if response.status_code == 200:
+        return response.json().get("choices", [{}])[0].get("message", {}).get("content", text)
+    return text
 
 # Process the Excel file
-def process_excel(file, api_key, prompt_template):
+def process_excel(file):
     workbook = openpyxl.load_workbook(file)
     sheet = workbook.active
-
     class_column_index = None
-    total_tokens_used = 0
 
     for col in sheet.iter_cols(1, sheet.max_column):
         if col[0].value == 'Class':
-            class_column_index = col[0].col_idx - 1  # Zero-indexed
+            class_column_index = col[0].col_idx - 1
 
-    if class_column_index is None:
-        st.error("Column 'Class' not found in the Excel sheet.")
-        return None
-
-    for row in sheet.iter_rows(min_row=2):  # Skip header
+    for row in sheet.iter_rows(min_row=2):
         student_class = row[class_column_index].value
         language_style = get_language_style_for_class(student_class)
 
@@ -79,42 +73,53 @@ def process_excel(file, api_key, prompt_template):
             if isinstance(cell.value, str):
                 parts = split_text_parts(cell.value)
                 translated_parts = []
+                review_comments = []
+                final_parts = []
 
                 for part in parts:
                     if is_hindi_text(part):
                         cleaned = clean_text(part)
-                        translated, tokens_used = translate_text_via_openai(cleaned, api_key, prompt_template, language_style)
+                        # Translation using DeepSeek
+                        translated = openwebui_request(cleaned, "deepseek-chat")
                         translated_parts.append(translated)
-                        total_tokens_used += tokens_used
+
+                        # Review using OpenAI
+                        review = openwebui_request(translated, "gpt-4o")
+                        review_comments.append(f"Review: {review}")
+
+                        # Correction using DeepSeek
+                        corrected = openwebui_request(review, "deepseek-chat")
+                        final_parts.append(corrected)
                     else:
                         translated_parts.append(part)
+                        review_comments.append("-")
+                        final_parts.append(part)
 
-                cell.value = ''.join(translated_parts)
+                # Display in Streamlit
+                st.write("Original: ", cell.value)
+                st.write("Translated: ", ''.join(translated_parts))
+                st.write("Review Comments: ", '\n'.join(review_comments))
+                st.write("Final Text: ", ''.join(final_parts))
 
-    st.write(f"Total tokens used for your file: {total_tokens_used}")
+                # Update cell with final text
+                cell.value = ''.join(final_parts)
+
     return workbook
 
-# Streamlit app UI
+# Streamlit app
 def main():
-    st.title('Hindi to English Question Translator')
+    st.title('OpenWebUI Translation and Review System')
 
-    uploaded_file = st.file_uploader("Upload Excel File (ensure that the excel has a 'Class' column)", type="xlsx")
-
+    uploaded_file = st.file_uploader("Upload Excel File", type="xlsx")
     if uploaded_file:
-        api_key = load_api_key()
-        prompt_template = load_prompt_template()
-        workbook = process_excel(uploaded_file, api_key, prompt_template)
+        workbook = process_excel(uploaded_file)
+        output_filename = "translated_output_openwebui.xlsx"
 
-        if workbook:
-            input_filename = os.path.splitext(uploaded_file.name)[0]
-            output_filename = f"{input_filename}_en.xlsx"
+        with open(output_filename, 'wb') as f:
+            workbook.save(f)
 
-            with open(output_filename, 'wb') as f:
-                workbook.save(f)
-
-            with open(output_filename, 'rb') as f:
-                st.success('Translation completed!')
-                st.download_button('Download Translated File', f, file_name=output_filename)
+        with open(output_filename, 'rb') as f:
+            st.download_button('Download Processed File', f, file_name=output_filename)
 
 if __name__ == '__main__':
     main()
