@@ -2,18 +2,21 @@ import streamlit as st
 import openpyxl
 import requests
 import os
-import toml
 import re
 
-# Load configuration from TOML file
+# Load configuration from Streamlit Secrets
 def load_config():
-    return toml.load("config.toml")
+    config = st.secrets["openwebui"]
+    return {
+        "endpoint": config["endpoint"],
+        "api_key": config["api_key"]
+    }
 
 config = load_config()
 
 # Extract endpoint and API key
-api_endpoint = config['openwebui']['endpoint']
-api_key = config['openwebui']['api_key']
+api_endpoint = config['endpoint']
+api_key = config['api_key']
 
 # Determine language complexity based on class/age
 def get_language_style_for_class(student_class):
