@@ -1,5 +1,4 @@
-openai>=1.0.0
 streamlit
 openpyxl
 toml
-requests  # For OpenWebUI API requests
+requests
