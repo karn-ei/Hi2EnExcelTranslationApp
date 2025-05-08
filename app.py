@@ -89,7 +89,7 @@ def process_excel(file):
                     if is_hindi_text(part):
                         cleaned = clean_text(part)
                         # Translate using DeepSeek
-                        translated = openwebui_request(cleaned, "deepseek-chat")
+                        translated = openwebui_request(cleaned, "us.deepseek.r1-v1:0")
                         translated_parts.append(translated)
                     else:
                         translated_parts.append(part)
