@@ -3,7 +3,6 @@ import openpyxl
 import requests
 import os
 import re
-import pandas as pd
 
 # Load configuration from Streamlit Secrets
 def load_config():
@@ -59,18 +58,25 @@ def openwebui_request(text, model):
         return response.json().get("choices", [{}])[0].get("message", {}).get("content", text)
     return text
 
-# Process the Excel file and create data for the table
+# Process the Excel file
 def process_excel(file):
     workbook = openpyxl.load_workbook(file)
     sheet = workbook.active
     class_column_index = None
-    data = []
 
+    # Identify the Class column
     for col in sheet.iter_cols(1, sheet.max_column):
         if col[0].value == 'Class':
             class_column_index = col[0].col_idx - 1
 
-    for row in sheet.iter_rows(min_row=2):
+    # If Class column not found, show error
+    if class_column_index is None:
+        st.error("'Class' column not found in the Excel sheet.")
+        return None, []
+
+    output_data = []
+
+    for row in sheet.iter_rows(min_row=2):  # Skip header
         student_class = row[class_column_index].value
         language_style = get_language_style_for_class(student_class)
 
@@ -78,61 +84,51 @@ def process_excel(file):
             if isinstance(cell.value, str):
                 parts = split_text_parts(cell.value)
                 translated_parts = []
-                review_comments = []
-                final_parts = []
 
                 for part in parts:
                     if is_hindi_text(part):
                         cleaned = clean_text(part)
-                        # Translation using DeepSeek
-                        translated = openwebui_request(cleaned, "us.deepseek.r1-v1:0")
+                        # Translate using DeepSeek
+                        translated = openwebui_request(cleaned, "deepseek-chat")
                         translated_parts.append(translated)
-
-                        # Review only the translated content
-                        review = openwebui_request(translated, "gpt-4o")
-                        review_comments.append(f"Review: {review}")
-
-                        # Correction using DeepSeek
-                        corrected = openwebui_request(review, "us.deepseek.r1-v1:0")
-                        final_parts.append(corrected)
                     else:
                         translated_parts.append(part)
-                        review_comments.append("-")
-                        final_parts.append(part)
 
-                # Compile data for the table
-                data.append({
-                    "Original Text": cell.value,
-                    "Translated Text": ''.join(translated_parts),
-                    "Review Comments": '\n'.join(review_comments),
-                    "Final Text": ''.join(final_parts)
-                })
+                # Combine translated parts and store in output_data
+                original_text = cell.value
+                translated_text = ''.join(translated_parts)
+                output_data.append({"Original Text": original_text, "Translated Text": translated_text})
 
-                # Update cell with final text
-                cell.value = ''.join(final_parts)
+                # Update cell value with the translated text
+                cell.value = translated_text
 
-    return workbook, data
+    return workbook, output_data
 
 # Streamlit app
 def main():
-    st.title('Translate Hi to En on excel')
+    st.title('OpenWebUI Hindi to English Translator')
 
     uploaded_file = st.file_uploader("Upload Excel File", type="xlsx")
+
     if uploaded_file:
-        workbook, data = process_excel(uploaded_file)
+        # Process the Excel file and get the output data
+        workbook, output_data = process_excel(uploaded_file)
+
+        # Display the data in Streamlit
+        if output_data:
+            st.write("Translation Results:")
+            st.write(output_data)
+
+        # Generate output filename
         output_filename = os.path.splitext(uploaded_file.name)[0] + "_en.xlsx"
 
-        # Display the data as a table
-        if data:
-            df = pd.DataFrame(data)
-            st.write("Translation and Review Table")
-            st.dataframe(df)
-
+        # Save the workbook
         with open(output_filename, 'wb') as f:
             workbook.save(f)
 
+        # Provide download link
         with open(output_filename, 'rb') as f:
-            st.download_button('Download translated file', f, file_name=output_filename)
+            st.download_button('Download Translated File', f, file_name=output_filename)
 
 if __name__ == '__main__':
     main()

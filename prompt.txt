@@ -1,5 +1,5 @@
 Translate the following Hindi text to English {{language_style}}.
 Ignore any HTML tags, filenames (e.g. .svg, .mp3) or technical labels.
-Keep language simple, free of jargon and suitable for a rural context.
+Keep language simple, and free of jargon.
 Only translate the meaningful Hindi text:
 {{text}}
